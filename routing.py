@@ -1,6 +1,7 @@
 import re
 from datetime import datetime, timezone
 from mock_odoo import odoo_client
+from json_output import append_contact, append_ticket
 
 
 class MockTicketQueue:
@@ -63,7 +64,9 @@ def route_support(state: dict) -> dict:
     try:
         email = state.get("parsed_email") or state.get("raw_email", {})
         result = ticket_queue.create_ticket(email, state.get("classification", "support"))
-        logs.append(f"[{ts}] route_support: created ticket #{result['ticket']['id']}")
+        ticket = result["ticket"]
+        append_ticket(ticket, state.get("confidence", 0.0), state.get("reasoning", ""))
+        logs.append(f"[{ts}] route_support: created ticket #{ticket['id']} → tickets.json")
         return {
             "routing_result": result,
             "logs": logs,
@@ -85,7 +88,9 @@ def route_lead(state: dict) -> dict:
         sender_email = _extract_email_addr(from_field)
         sender_name = _extract_name(from_field)
         result = odoo_client.create_contact(sender_email, sender_name, email)
-        logs.append(f"[{ts}] route_lead: created Odoo contact #{result['contact']['id']} for {sender_email}")
+        contact = result["contact"]
+        append_contact(contact, state.get("confidence", 0.0), state.get("reasoning", ""))
+        logs.append(f"[{ts}] route_lead: created Odoo contact #{contact['id']} → contacts.json")
         return {
             "routing_result": result,
             "logs": logs,
